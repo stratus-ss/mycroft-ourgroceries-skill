@@ -1,0 +1,5 @@
+add (?P<Food>.*) to my list
+append (?P<Food>.*) to my list
+add (?P<Food>.*) to my shopping list
+add (?P<Food>.*) to my grocery list
+

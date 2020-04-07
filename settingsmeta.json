@@ -1,0 +1,42 @@
+{
+    "skillMetadata": {
+        "sections": [
+            {
+                "name": "OurGroceries Account",
+                "fields": [
+                    {
+                        "type": "label",
+                        "value": "",
+                        "label": "Provide your OurGroceries username/password and then Connect with the button below.<p/>"
+                    },
+                    {
+                        "name": "user",
+                        "type": "text",
+                        "label": "Username",
+                        "value": "groceries",
+                        "placeholder": "OurGroceries username"
+                    },
+                    {
+                        "name": "password",
+                        "type": "password",
+                        "label": "Password",
+                        "value": ""
+                    },
+                  {
+                      "name": "default_list",
+                      "type": "text",
+                      "label": "Default Shopping List",
+                      "value": "shopping list",
+                      "placeholder": "The shopping list to add items to"
+                  },
+          {
+            "type": "label",
+            "value": "",
+            "label": "Click the Save button, then use the Connect button to authorize with OurGroceries.<p/>"
+          }
+        ]
+      }
+   ]
+  }
+}
+
