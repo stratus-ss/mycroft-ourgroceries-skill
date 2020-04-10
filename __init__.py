@@ -34,38 +34,75 @@ class OurGroceriesSkill(MycroftSkill):
         self.grocery_state_file = "ourgroceries.txt"
         self.category_state_file = "categories.txt"
 
-    def add_to_my_list(self, full_list, item_name, all_categories, item_category="uncategorized"):
+    def add_to_my_list(self, full_list, item_name, all_categories, item_category="None"):
+        """
+
+        :param full_list:
+        :param item_name:
+        :param all_categories:
+        :param item_category:
+        :return:
+        """
         # check to make sure the object doesn't exist
         # The groceries live in my_full_list['list']['items']
         # Start with the assumption that the food does not exist
         food_exists = False
+        move_food_between_categories = False
         toggle_crossed_off = False
-        category_lowered = item_category.lower()
+        if item_category:
+            category_lowered = item_category.lower()
+        else:
+            category_lowered = item_category
+        category_id = self.return_category_id(category_lowered, all_categories)
+        # basic structure is {'list':{'items':['id': '','value':'','categoryId':'']}}
         for food_item in full_list['list']['items']:
             if item_name in food_item['value']:
-                print("Already exists")
+                # if the food exists check to see if it is in category the user requested
                 try:
+                    if category_id == food_item['categoryId']:
+                        self.log.info("-----> Already exists in Category")
+                        food_exists = True
+                    else:
+                        move_food_between_categories = True
+                except KeyError:
+                    # KeyError is likely to happen when an item is uncategorized so assume we should move it
+                    self.log.info("---------> Item already exists")
+                    move_food_between_categories = True
+                    pass
+                try:
+                    # It is possible that the food exists in the list but its just crossed off
+                    # assume that the user wants to toggle it back to the main list
                     if food_item['crossedOff']:
                         print("Returning crossed off item to list")
                         existing_item_id = food_item['id']
                         toggle_crossed_off = True
                 except KeyError:
                     pass
-                food_exists = True
-        if not food_exists:
-            print(self.my_list_id)
-            print(item_name)
-            print(category_lowered)
-            category_id = self.return_category_id(category_lowered, all_categories)
-            print(category_id)
+        if not food_exists or move_food_between_categories:
             asyncio.run(self.ourgroceries_object.add_item_to_list(self.my_list_id, item_name, category_id))
-            print("Added item")
+            self.log.info("-----> Added item <------")
+            # update local dict so we dont have to refresh it
+            index = 0
+            for item in full_list['list']['items']:
+                if item_name in item['value']:
+                    # NOTE this is no longer a value backup item because the id of the new object
+                    # was not retrieved from the server. This is simply to make sure we dont add duplicates
+                    # We are trying to avoid excessive calls to the ourgroceries servers
+                    full_list['list']['items'][index] = {'value': item_name, 'categoryId': category_id}
+                index += 1
+            self.write_new_list_to_disk(self.grocery_state_file, full_list)
         else:
             if toggle_crossed_off:
                 asyncio.run(self.ourgroceries_object.toggle_item_crossed_off(self.my_list_id, existing_item_id,
                                                                              cross_off=False))
 
     def add_category(self, category_name, all_categories):
+        """
+
+        :param category_name:
+        :param all_categories:
+        :return:
+        """
         category_id = self.return_category_id(category_name, all_categories)
         if category_id is None:
             asyncio.run(self.ourgroceries_object.create_category(category_name))
@@ -75,6 +112,13 @@ class OurGroceriesSkill(MycroftSkill):
             print("Category already exists")
 
     def check_file_age(self, state_file, current_timestamp, object_type=None):
+        """
+
+        :param state_file:
+        :param current_timestamp:
+        :param object_type:
+        :return:
+        """
         if os.path.isfile(state_file):
             temp_list = json.load(open(state_file))
             try:
@@ -82,6 +126,7 @@ class OurGroceriesSkill(MycroftSkill):
                 minutes_since_last_refresh = round((current_timestamp - last_refresh) / 60)
             except KeyError:
                 pass
+            self.log.info("List is %s minutes old" % minutes_since_last_refresh)
             if minutes_since_last_refresh > 10:
                 print("Updating %s list as it is older than 10 minutes" % object_type)
                 full_list = self.fetch_list_and_categories(object_type=object_type)
@@ -97,6 +142,11 @@ class OurGroceriesSkill(MycroftSkill):
         return full_list
 
     def fetch_list_and_categories(self, object_type=None):
+        """
+
+        :param object_type:
+        :return:
+        """
         if object_type == "groceries":
             list_to_return = asyncio.run(self.ourgroceries_object.get_list_items(list_id=self.my_list_id))
         elif object_type == "categories":
@@ -106,6 +156,11 @@ class OurGroceriesSkill(MycroftSkill):
         return list_to_return
 
     def refresh_lists(self, override=None):
+        """
+
+        :param override:
+        :return:
+        """
         current_timestamp = self.current_time.timestamp()
         if override is None:
             grocery_list = self.check_file_age(self.grocery_state_file, current_timestamp, object_type="groceries")
@@ -117,35 +172,52 @@ class OurGroceriesSkill(MycroftSkill):
 
     @staticmethod
     def return_category_id(category_to_search_for, all_categories):
-        category_to_search_for_lower = category_to_search_for.lower()
+        """
+
+        :param category_to_search_for:
+        :param all_categories:
+        :return:
+        """
+        try:
+            category_to_search_for_lower = category_to_search_for.lower()
+        except AttributeError:
+            category_to_search_for_lower = category_to_search_for
         category_id = None
         if len(all_categories['list']['items']) is not 0:
             for category_heading in all_categories['list']['items']:
                 # Split the heading because if there is already a duplicate it
                 # presents as "{{item}} (2)"
                 category_heading_lowered = category_heading['value'].lower().split()[0]
-                if category_to_search_for_lower == category_heading_lowered:
-                    category_id = category_heading['id']
-                    break
-                # attempt to compensate for plurals in categories
-                elif category_to_search_for_lower + 's' == category_heading_lowered:
-                    category_id = category_heading['id']
-                    break
-                elif category_to_search_for_lower + 'ies' == category_heading_lowered:
-                    category_id = category_heading['id']
-                    break
-                # If we assume that the last character is a plural 'S', slice it off
-                # and check to see if the heading is the same
-                elif category_to_search_for_lower[:-1] == category_heading_lowered:
-                    category_id = category_heading['id']
-                    break
-                # Assume the last 3 characters are 'ies' and remove them
-                elif category_to_search_for_lower[:-3] == category_heading_lowered:
-                    category_id = category_heading['id']
-                    break
+                if category_to_search_for_lower is not None:
+                    if category_to_search_for_lower == category_heading_lowered:
+                        category_id = category_heading['id']
+                        break
+                    # attempt to compensate for plurals in categories
+                    elif category_to_search_for_lower + 's' == category_heading_lowered:
+                        category_id = category_heading['id']
+                        break
+                    elif category_to_search_for_lower + 'ies' == category_heading_lowered:
+                        category_id = category_heading['id']
+                        break
+                    # If we assume that the last character is a plural 'S', slice it off
+                    # and check to see if the heading is the same
+                    elif category_to_search_for_lower[:-1] == category_heading_lowered:
+                        category_id = category_heading['id']
+                        break
+                    # Assume the last 3 characters are 'ies' and remove them
+                    elif category_to_search_for_lower[:-3] == category_heading_lowered:
+                        category_id = category_heading['id']
+                        break
+                else:
+                    category_id = category_to_search_for
         return category_id
 
     def uncross_all_items(self, full_list):
+        """
+
+        :param full_list:
+        :return:
+        """
         for food_item in full_list['list']['items']:
             try:
                 if food_item['crossedOff']:
@@ -165,6 +237,11 @@ class OurGroceriesSkill(MycroftSkill):
 
     @intent_handler(IntentBuilder('').require('CreateItemKeyword').require("Food").optionally("Category"))
     def create_item_on_list(self, message):
+        """
+
+        :param message:
+        :return:
+        """
         category = None
         item_to_add = message.data['Food']
         try:
@@ -172,11 +249,12 @@ class OurGroceriesSkill(MycroftSkill):
         except KeyError:
             pass
         self.log.info(message.data)
-        print(message.data)
-        self.speak_dialog("Adding %s to your list" % item_to_add)
+        self.log.info(item_to_add)
+        self.speak("Adding %s to your list" % item_to_add)
         all_shopping_list, categories = self.refresh_lists()
         self.add_to_my_list(full_list=all_shopping_list, item_name=item_to_add, all_categories=categories,
                             item_category=category)
+
 
 def create_skill():
     return OurGroceriesSkill()
