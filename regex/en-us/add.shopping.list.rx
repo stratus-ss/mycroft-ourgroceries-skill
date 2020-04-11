@@ -1,0 +1,8 @@
+start a new list called (?P<ListName>.*)
+create a list called (?P<ListName>.*)
+start a new list named (?P<ListName>.*)
+create a new list named (?P<ListName>.*)
+start a new shopping list called (?P<ListName>.*)
+create a shopping list called (?P<ListName>.*)
+start a new shopping list named (?P<ListName>.*)
+create a new shopping list named (?P<ListName>.*)
