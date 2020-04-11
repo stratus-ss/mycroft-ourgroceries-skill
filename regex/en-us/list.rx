@@ -1,0 +1,2 @@
+the (?P<ShoppingList>.*) list
+my (?P<ShoppingList>.*) list
