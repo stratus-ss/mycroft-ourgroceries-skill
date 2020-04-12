@@ -149,14 +149,14 @@ class OurGroceriesSkill(MycroftSkill):
             self.log.info("List is %s minutes old" % minutes_since_last_refresh)
             if minutes_since_last_refresh > 10:
                 print("Updating %s list as it is older than 10 minutes" % object_type)
-                full_list = self.fetch_list_and_categories(self.list_id, object_type=object_type)
+                full_list = self.fetch_list_and_categories(object_type=object_type)
                 full_list[self.time_heading_in_dict] = current_timestamp
                 self.write_new_list_to_disk(state_file, full_list)
             else:
                 print("%s list under 10 minutes old... skipping refresh" % object_type)
                 full_list = temp_list
         else:
-            full_list = self.fetch_list_and_categories(self.list_id, object_type=object_type)
+            full_list = self.fetch_list_and_categories(object_type=object_type)
             full_list[self.time_heading_in_dict] = current_timestamp
             # Write the cached file to disk
             self.write_new_list_to_disk(state_file, full_list)
@@ -194,8 +194,8 @@ class OurGroceriesSkill(MycroftSkill):
             all_categories = self.check_file_age(category_state_file, current_timestamp, object_type="categories")
         # Skip the age check if the override is passed in
         else:
-            grocery_list = self.fetch_list_and_categories(list_id=self.list_id, object_type="groceries")
-            all_categories = self.fetch_list_and_categories(list_id=self.list_id, object_type="categories")
+            grocery_list = self.fetch_list_and_categories(object_type="groceries")
+            all_categories = self.fetch_list_and_categories(object_type="categories")
         return grocery_list, all_categories
 
     @staticmethod
@@ -252,7 +252,7 @@ class OurGroceriesSkill(MycroftSkill):
         pass
 
     @intent_handler(IntentBuilder('').require('CreateItemKeyword').require("Food")
-                    .optionally("ShoppingList").optionally("Category"))
+                    .require("ShoppingList").optionally("Category"))
     def create_item_on_list(self, message):
         """
         I NEED TO FIX THE REGEX AS IT DOES NOT CAPTURE SPACES
