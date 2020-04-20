@@ -15,21 +15,22 @@ import json
 class OurGroceriesSkill(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self)
-        #self.username = self.settings.get('user')
-        #self.password = self.settings.get('password')
-        self.username = "groceries"
-        self.password = ""
         # this variable is needed if adding new shopping lists
         self.new_shopping_list_name = ''
         self.list_id = ''
         self.list_name = ''
-        self.ourgroceries_object = OurGroceries(self.username, self.password)
-        asyncio.run(self.ourgroceries_object.login())
-
         self.current_time = datetime.datetime.now()
         self.time_heading_in_dict = 'refresh_date'
         self.grocery_state_file = ""
         self.category_state_file = "grocery_categories.txt"
+
+    def initialize(self):
+        self.username = self.settings.get('user')
+        self.password = self.settings.get('password')
+
+    def _create_initial_grocery_connection(self):
+        self.ourgroceries_object = OurGroceries(self.username, self.password)
+        asyncio.run(self.ourgroceries_object.login())
 
     def determine_list_id(self, list_string):
         list_id = None
@@ -262,6 +263,8 @@ class OurGroceriesSkill(MycroftSkill):
         :param message:
         :return:
         """
+        self._create_initial_grocery_connection()
+        print("----------------- %s" % self.username)
         category = None
         item_to_add = message.data['Food']
         try:
@@ -300,6 +303,7 @@ class OurGroceriesSkill(MycroftSkill):
         :param message:
         :return:
         """
+        self._create_initial_grocery_connection()
         user_entered_category = message.data['Category']
         self.speak("Adding the category %s to your list" % user_entered_category)
         shopping_list, categories = self.refresh_lists(override=True)
@@ -317,6 +321,7 @@ class OurGroceriesSkill(MycroftSkill):
         :param message:
         :return:
         """
+        self._create_initial_grocery_connection()
         self.new_shopping_list_name = message.data['ListName'].lower()
         current_lists = asyncio.run(self.ourgroceries_object.get_my_lists())
         for current_shopping_list in current_lists['shoppingLists']:

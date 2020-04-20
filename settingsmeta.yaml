@@ -1,0 +1,12 @@
+skillMetadata:
+  sections:
+  - name: Login
+    fields:
+    - name: user_name
+      type: text
+      label: username
+      value: ''
+    - name: password
+      type: password
+      label: Ourgroceries password
+      value: ''
