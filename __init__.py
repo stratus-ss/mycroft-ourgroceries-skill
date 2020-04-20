@@ -24,11 +24,9 @@ class OurGroceriesSkill(MycroftSkill):
         self.grocery_state_file = ""
         self.category_state_file = "grocery_categories.txt"
 
-    def initialize(self):
-        self.username = self.settings.get('user')
-        self.password = self.settings.get('password')
-
     def _create_initial_grocery_connection(self):
+        self.username = self.settings.get('user_name')
+        self.password = self.settings.get('password')
         self.ourgroceries_object = OurGroceries(self.username, self.password)
         asyncio.run(self.ourgroceries_object.login())
 
