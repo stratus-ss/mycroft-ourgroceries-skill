@@ -1,3 +1,0 @@
-add (?P<Food>.*) (to my) (?P<ShoppingList>.*) list
-add (?P<Food>.*) (to the) (?P<ShoppingList>.*) list
-

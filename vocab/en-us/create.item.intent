@@ -1,2 +1,1 @@
-add {Food} to the {ShoppingList} list under {Heading}
-add {Food} to my {ShoppingList} list under {Heading}
+add {Food} to (| (the | my)) {ShoppingList} (| list) (under {Category} |)

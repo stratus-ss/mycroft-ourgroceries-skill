@@ -19,25 +19,63 @@ class OurGroceriesSkill(MycroftSkill):
         self.new_shopping_list_name = ''
         self.list_id = ''
         self.list_name = ''
+        self.category = None
         self.current_time = datetime.datetime.now()
         self.time_heading_in_dict = 'refresh_date'
         self.grocery_state_file = ""
         self.category_state_file = "grocery_categories.txt"
 
     def _create_initial_grocery_connection(self):
+        """
+        This gets the username/password from the config file and gets the session cookie
+        for any interactions
+        :return: None
+        """
         self.username = self.settings.get('user_name')
         self.password = self.settings.get('password')
         self.ourgroceries_object = OurGroceries(self.username, self.password)
         asyncio.run(self.ourgroceries_object.login())
 
     def determine_list_id(self, list_string):
+        """
+        This is used to determine the list id used to add items to the correct list
+        It attempts to handle common scenarios of mis-named lists. For example
+        the list might be called "Groceries" but the user may say "Groceries list".
+        It tries to find an exact match and if that fails, find a match by splitting off
+        the word "list" from the utterance captured by Mycroft
+        :param list_string:
+        :return: list_id  alpha numeric string that corresponds with the OurGroceries ID
+        """
         list_id = None
+        # Just to be safe we are going to lower the utterance that has been passed in
+        lowered_list = list_string.lower()
+        # Go get a current list from the servers
         temp_list = asyncio.run(self.ourgroceries_object.get_my_lists())
+        # The server identifies all lists in under the key "shoppingLists"
         for shopping_list in temp_list['shoppingLists']:
-            if list_string.lower() == shopping_list['name'].lower():
+            if lowered_list == shopping_list['name'].lower():
                 list_id = shopping_list['id']
                 break
+            else:
+                if "list" in lowered_list.split():
+                    # Split the string and remove the list word. Strip the output to remove any trailing spaces
+                    list_string_without_list_word = " ".join(lowered_list.split("list")[:-1]).strip()
+                    if list_string_without_list_word == shopping_list['name'].lower():
+                        list_id = shopping_list['id']
+                        break
         return list_id
+
+    def determine_category_name(self, message_data):
+        """
+        This function determines the category name. Since the Padatious intent passes all
+        variables in as lower case you have to check for both upper and lower case keys
+        :param message_data: This includes the utterance captured by Mycroft
+        :return:
+        """
+        self.category = message_data.get('Category')
+        if self.category is None:
+            # Category is optional so this is a non-fatal error
+            self.category = message_data.get("category")
 
     def add_to_my_list(self, full_list, item_name, all_categories, item_category="None"):
         """
@@ -83,7 +121,7 @@ class OurGroceriesSkill(MycroftSkill):
                     # It is possible that the food exists in the list but its just crossed off
                     # assume that the user wants to toggle it back to the main list
                     if food_item['crossedOff']:
-                        print("Returning crossed off item to list")
+                        self.log.info("Returning crossed off item to list")
                         existing_item_id = food_item['id']
                         toggle_crossed_off = True
                 except KeyError:
@@ -121,9 +159,9 @@ class OurGroceriesSkill(MycroftSkill):
         if category_id is None:
             asyncio.run(self.ourgroceries_object.create_category(category_name))
             self.refresh_lists()
-            print("Added Category")
+            self.log.info("Added Category")
         else:
-            print("Category already exists")
+            self.log.info("Category already exists")
 
     def check_file_age(self, state_file, current_timestamp, object_type=None):
         """
@@ -147,12 +185,12 @@ class OurGroceriesSkill(MycroftSkill):
                 pass
             self.log.info("List is %s minutes old" % minutes_since_last_refresh)
             if minutes_since_last_refresh > 10:
-                print("Updating %s list as it is older than 10 minutes" % object_type)
+                self.log.info("Updating %s list as it is older than 10 minutes" % object_type)
                 full_list = self.fetch_list_and_categories(object_type=object_type)
                 full_list[self.time_heading_in_dict] = current_timestamp
                 self.write_new_list_to_disk(state_file, full_list)
             else:
-                print("%s list under 10 minutes old... skipping refresh" % object_type)
+                self.log.info("%s list under 10 minutes old... skipping refresh" % object_type)
                 full_list = temp_list
         else:
             full_list = self.fetch_list_and_categories(object_type=object_type)
@@ -175,7 +213,7 @@ class OurGroceriesSkill(MycroftSkill):
             list_to_return = None
         return list_to_return
 
-    def refresh_lists(self, override=None, category_state_file=None):
+    def refresh_lists(self, override=None, category_state_file=None, category_only=None):
         """
         This is responsible for calling the age check on grocery and category lists
         :param override: (bool) This option will force a new file to be fetched regardless of the time stamp
@@ -193,8 +231,12 @@ class OurGroceriesSkill(MycroftSkill):
             all_categories = self.check_file_age(category_state_file, current_timestamp, object_type="categories")
         # Skip the age check if the override is passed in
         else:
-            grocery_list = self.fetch_list_and_categories(object_type="groceries")
-            all_categories = self.fetch_list_and_categories(object_type="categories")
+            if category_only:
+                grocery_list = None
+                all_categories = self.fetch_list_and_categories(object_type="categories")
+            else:
+                grocery_list = self.fetch_list_and_categories(object_type="groceries")
+                all_categories = self.fetch_list_and_categories(object_type="categories")
         return grocery_list, all_categories
 
     @staticmethod
@@ -247,31 +289,18 @@ class OurGroceriesSkill(MycroftSkill):
         with open(state_file, 'w') as f:
             json.dump(new_list, f)
 
-    def stop(self):
-        pass
-
-    @intent_handler(IntentBuilder('').require('CreateItemKeyword').require("Food")
-                    .require("ShoppingList").optionally("Category"))
-    def create_item_on_list(self, message):
+    def check_shopping_list_exists(self, message_data):
         """
-        I NEED TO FIX THE REGEX AS IT DOES NOT CAPTURE SPACES
-        Handles the initial voice interaction from the user.
-        Uses add.item.rx and optionally category.rx and list.rx
-
-        :param message:
-        :return:
+        This validates that the requested shopping list exists. It defines the list_name and
+        list_id for object-scope use
+        :param message_data: this is the data captured by mycroft audio
+        :return: nothing
         """
-        self._create_initial_grocery_connection()
-        print("----------------- %s" % self.username)
-        category = None
-        item_to_add = message.data['Food']
         try:
-            category = message.data['Category']
-        except KeyError:
-            # Category is optional so this is a non-fatal error
-            pass
-        try:
-            self.list_name = message.data['ShoppingList']
+            try:
+                self.list_name = message_data['ShoppingList']
+            except:
+                self.list_name = message_data['shoppinglist']
             self.list_id = self.determine_list_id(self.list_name)
             if self.list_id is None:
                 self.speak("Sorry the %s list does not exist" % self.list_name)
@@ -281,30 +310,70 @@ class OurGroceriesSkill(MycroftSkill):
             # If there is a key error, its most likely to be on the shopping list name
             # The shopping list name is required to find the list_id
             # without list_id this error is considered fatal
+            self.speak("key error during checking shopping list exists")
             exit()
 
+    @intent_file_handler("create.multiple.items.intent")
+    def create_multiple_item_on_list(self, message):
+        """
+        This function handles multiple items being added to the list
+        :param message: This is the data including utterance from Mycroft
+        :return: Nothing
+        """
+        self._create_initial_grocery_connection()
+        self.check_shopping_list_exists(message.data)
+        self.determine_category_name(message.data)
+        shopping_list_dict, categories = self.refresh_lists()
+        response = self.get_response("Ok what would you like to add")
+        if response is None:
+            exit()
+        for item_to_add in response.split():
+            # Ignore the word 'and' in an utterance
+            if item_to_add == "and":
+                continue
+            try:
+                self.add_to_my_list(full_list=shopping_list_dict, item_name=item_to_add, all_categories=categories,
+                                    item_category=self.category)
+                self.speak("Adding %s to your list" % item_to_add)
+            except:
+                # This is a generic catchall which should exit instead of throwing the mycroft error
+                self.speak("Sorry, I couldn't add %s to %s list" % (item_to_add, self.list_name))
+                exit()
+
+    @intent_file_handler("create.item.intent")
+    def create_item_on_list(self, message):
+        """
+        This function adds an item to the specified list
+
+        :param message:
+        :return:
+        """
+        item_to_add = message.data.get('food')
+        self._create_initial_grocery_connection()
+
+        self.check_shopping_list_exists(message.data)
+        self.determine_category_name(message.data)
         shopping_list_dict, categories = self.refresh_lists()
         try:
             self.add_to_my_list(full_list=shopping_list_dict, item_name=item_to_add, all_categories=categories,
-                                item_category=category)
+                                item_category=self.category)
             self.speak("Adding %s to your list" % item_to_add)
         except:
             # This is a generic catchall which should exit instead of throwing the mycroft error
             self.speak("Sorry, I couldn't add %s to %s list" % (item_to_add, self.list_name))
             exit()
 
-    @intent_handler(IntentBuilder('').require('CreateCategoryKeyword').require("Category"))
+    @intent_file_handler("create.category.intent")
     def create_category(self, message):
         """
         This creates the category when invoked by the user
-        Uses category.rx
-        :param message:
+        :param message: includes utterance passed from Mycroft
         :return:
         """
         self._create_initial_grocery_connection()
-        user_entered_category = message.data['Category']
+        user_entered_category = message.data.get('category')
         self.speak("Adding the category %s to your list" % user_entered_category)
-        shopping_list, categories = self.refresh_lists(override=True)
+        shopping_list, categories = self.refresh_lists(override=True, category_only=True)
         self.add_category(user_entered_category, categories)
 
     @intent_handler(IntentBuilder('CreateShoppingIntent').require('CreateShoppingListKeyword').require("ListName"))
