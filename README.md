@@ -1,32 +1,33 @@
-# <img src='https://raw.githack.com/FortAwesome/Font-Awesome/master/svgs/solid/smile.svg' card_color='#22a7f0' width='50' height='50' style='vertical-align:bottom'/> Hello World
-Introductory Skill so that Skill Authors can see how a Mycroft Skill is put together
 
 ## About
-This is a basic Hello Word Skill that takes an _Utterance_ from the user and provides a voice response - a _Dialog_. This Skill demonstrates the basic directory and file structure of a Mycroft Skill, and is a good first Skill to study if you are interested in developing Skills for the Mycroft ecosystem.
+This skill is designed to work with [OurGroceries](https://www.ourgroceries.com) app. This is an *UNOFFICIAL* skill which I developed as a convenience for interacting with the app. The application developers are not responsible for this skill. Please do not direct any problems with the Mycroft skill anywhere but the issues section.
 
-If you want to write **Skills** for Mycroft, Documentation is available:
+With this skill you can:
+* add new shopping lists
+* add new categories
+* add items to a specific list
+* add items to a specific list under a category
+* add multiple items to a specific list
+* add multiple items to a specific list under a category
 
-* [Mycroft Skills Kit](https://mycroft.ai/documentation/skills/msk/)
-* [Developing a new Skill](https://mycroft.ai/documentation/skills/introduction-developing-skills/)
-* [Skill Settings](https://mycroft.ai/documentation/skills/skill-settings/)
-* [Automatic testing of your Mycroft Skill](https://mycroft.ai/documentation/skills/automatic-testing/)
-* [Skill Acceptance Process](https://mycroft.ai/documentation/skills/skills-acceptance-process/)
-* [Mycroft Skills Manager](https://mycroft.ai/documentation/msm/)
-* [Mycroft Message Bus](https://mycroft.ai/documentation/message-bus/)
+*NOTE* adding multiple items is still bound by the default Mycroft timeout, so you are still limited to 10 seconds or less
 
 ## Examples
-* "Hello world"
-* "How are you?"
-* "Thank you"
+
+### Add Categories
+* "add the category {Category} to (my | the) (list | shopping list | grocery list)"
+* "create the category {Category} in (my |the ) (list | shopping list | grocery list)"
+
+### Add Items
+* "add {Food} to (| (the | my)) {ShoppingList} (| list) (under {Category} |)"
+* "(please |) add multiple items to (| (the | my)) {ShoppingList} (under {Category} |)"
+* "I want to add multiple items to (| (the | my)) {ShoppingList} (under {Category} |)"
+
+### Create new lists
+* "start a new list called {ListName}"
+* "create a new list called {ListName}"
+* "create a list called {ListName}"
+* "start a list called {ListName}"
 
 ## Credits
-Mycroft AI (@MycroftAI)
-
-## Category
-**Configuration**
-
-## Tags
-#helloworld
-#first-skill
-#hello
-#greeting
+stratus-ss
