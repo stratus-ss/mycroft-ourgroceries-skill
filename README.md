@@ -1,5 +1,4 @@
-
-## About
+## About This Skill
 This skill is designed to work with [OurGroceries](https://www.ourgroceries.com) app. This is an *UNOFFICIAL* skill which I developed as a convenience for interacting with the app. The application developers are not responsible for this skill. Please do not direct any problems with the Mycroft skill anywhere but the issues section.
 
 With this skill you can:
