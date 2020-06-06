@@ -97,10 +97,7 @@ class OurGroceriesSkill(MycroftSkill):
         food_exists = False
         move_food_between_categories = False
         toggle_crossed_off = False
-        if item_category:
-            category_lowered = item_category.lower()
-        else:
-            category_lowered = item_category
+        category_lowered = item_category.lower() if item_category else item_category
         category_id = self.return_category_id(category_lowered, all_categories)
         # basic structure is {'list':{'items':['id': '','value':'','categoryId':'']}}
         for food_item in full_list['list']['items']:
@@ -116,7 +113,6 @@ class OurGroceriesSkill(MycroftSkill):
                     # KeyError is likely to happen when an item is uncategorized so assume we should move it
                     self.log.info("---------> Item already exists")
                     move_food_between_categories = True
-                    pass
                 try:
                     # It is possible that the food exists in the list but its just crossed off
                     # assume that the user wants to toggle it back to the main list
@@ -397,13 +393,12 @@ class OurGroceriesSkill(MycroftSkill):
                 if self.new_shopping_list_name in current_shopping_list:
                     if self.new_shopping_list_name == current_shopping_list:
                         self.speak("The shopping list %s already exists" % self.new_shopping_list_name )
-                        break
                     else:
                         self.speak("I found a similar naming list called %s" % current_shopping_list)
                         # This hands off to either handle_dont_create_anyways_context or handle_create_anyways_context
                         # to make a context aware decision
                         self.speak("Would you like me to add your new list anyways?", expect_response=True)
-                        break
+                    break
             except AttributeError:
                 # If there is an attribute error it is most likely that there are no shopping lists
                 # This is a non-fatal error when added a new shopping list
